@@ -78,6 +78,8 @@ loop(Req, _DocRoot) ->
                    catch 
                         _Error:_Reason -> Req:respond({400, [], []})
                    end;
+	        "ping" ->
+                    Req:respond({200, [], []});
                 _ ->
                     Req:not_found()
             end;

@@ -26,9 +26,10 @@ How to compile?
 How to use?
 ==================
 
-	./comet.sh start - start of comet server
-	./comet.sh debug - start of comet server in debug mode with erlang shell
-	./comet.sh stop  - stop of comet server
+	./comet.sh start    - start comet server
+	./comet.sh debug    - start comet server in debug mode with erlang shell
+	./comet.sh stop     - stop comet server
+	./comet.sh restart  - restart comet server
 
 You need to change settings inside of comet.sh.
 
