@@ -19,8 +19,8 @@ COMET_CONFIG=/home/wwwroot/erlchat/server/src/server.conf
 export HEART_COMMAND="/home/wwwroot/erlchat/server/comet.sh start"
 
 start() {
-    $ERL -pa $PA/ebin $PA/edit $PA/deps/*/ebin -boot start_sasl -heart -env HEART_BEAT_TIMEOUT 10 -name comet@$HOSTNAME -comet_config $COMET_CONFIG -s server +K true -setcookie $SECRET_KEY -detached
-    echo  "Starting Webserver"
+    $ERL -pa $PA/ebin $PA/edit $PA/deps/*/ebin -boot start_sasl -heart -env HEART_BEAT_TIMEOUT 10 -name comet@$HOSTNAME -comet_config $COMET_CONFIG -s server +K true +P 50000 -setcookie $SECRET_KEY -detached
+    echo "Starting Webserver"
 }
 
 stop() {
@@ -29,7 +29,7 @@ stop() {
 }
 
 debug() {
-    $ERL -pa $PA/ebin $PA/edit $PA/deps/*/ebin -boot start_sasl -name comet@$HOSTNAME -comet_config $COMET_CONFIG -s server +K true -setcookie $SECRET_KEY
+    $ERL -pa $PA/ebin $PA/edit $PA/deps/*/ebin -boot start_sasl -name comet@$HOSTNAME -comet_config $COMET_CONFIG -s server +K true +P 50000 -setcookie $SECRET_KEY
 }
 
 
@@ -56,5 +56,5 @@ case $1 in
     echo "Usage: $0 {start|stop|debug|restart}"
     exit 1
 esac
- 
+
 exit 0
