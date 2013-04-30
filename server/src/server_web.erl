@@ -2,6 +2,9 @@
 
 -export([loop/2, start/1, stop/0]).
 
+-define(SEND_TIMEOUT, 120000).
+-define(REQUEST_TIMEOUT, 50000).
+
 %% External API
 
 %
@@ -40,45 +43,63 @@ loop(Req, _DocRoot) ->
         Method when Method =:= 'GET'; Method =:= 'HEAD'; Method =:= 'POST' ->
             case Path of
                 "getmessages" ->
-                try
-                     Struct = mochijson2:decode(Req:recv_body()),
-                     {struct, JsonData} = Struct,
-                     HexTicket = proplists:get_value(<<"ticket">>, JsonData),
-                     TJson = proplists:get_value(<<"t">>, JsonData),
+                    try
+                        Struct = mochijson2:decode(Req:recv_body()),
+                        {struct, JsonData} = Struct,
+                        HexTicket = proplists:get_value(<<"ticket">>, JsonData),
+                        TJson = proplists:get_value(<<"t">>, JsonData),
 
-                     if
-                         is_binary(TJson) ->
-                             T = list_to_integer(binary_to_list(proplists:get_value(<<"t">>, JsonData)));
-                     true ->
-                         T = TJson
-                     end,
+                        if
+                            is_binary(TJson) ->
+                                T = list_to_integer(binary_to_list(TJson));
+                            true ->
+                                T = TJson
+                        end,
 
-                     MJson = proplists:get_value(<<"m">>, JsonData),
-                     if
-                         is_binary(MJson) ->
-                             Mid = list_to_integer(binary_to_list(proplists:get_value(<<"m">>, JsonData)));
-                     true ->
-                         Mid = MJson
-                     end,
+                        MJson = proplists:get_value(<<"m">>, JsonData),
+                        if
+                            is_binary(MJson) ->
+                                Mid = list_to_integer(binary_to_list(MJson));
+                            true ->
+                                Mid = MJson
+                        end,
 
-                     Id = router:ticket_decode(binary_to_list(HexTicket), T),
+                        Id = router:ticket_decode(binary_to_list(HexTicket), T),
                      
-                     if
-                         is_integer(Id) ->
-                            if
-                                Id == 0, Mid == 0 ->
-                                    Req:respond({501, [], []});
-                                true ->
-                                    router:login(Id, self(), Mid),
-                                    feed(Req, 1, 55000)
-                                end;
-                       true ->
-                            Req:respond({400, [], []})
+                        if
+                            is_integer(Id) ->
+                                if
+                                    Id == 0, Mid == 0 ->
+                                        Req:respond({501, [], []});
+                                    true ->
+                                        router:login(Id, self(), Mid),
+                                        feed(Req)
+                                    end;
+                            true ->
+                                Req:respond({400, [], []})
                        end
                    catch 
                         _Error:_Reason -> Req:respond({400, [], []})
                    end;
-	        "ping" ->
+             "send" ->
+                   Req:respond({200, [], []}),
+                   PostData = Req:parse_post(),
+
+                   Mid = list_to_integer(proplists:get_value("mid", PostData)),
+                   Uid  = list_to_integer(proplists:get_value("uid", PostData)),
+                   Msg = proplists:get_value("message", PostData),
+
+                   if
+                       is_integer(Uid), is_integer(Mid) ->
+                           router:new_message(Uid, Mid, Msg),
+                          
+	                   receive
+                           after
+                               ?SEND_TIMEOUT ->
+	                           router:remove_message(Uid, Mid, Msg)                           
+			   end
+                     end;
+               "ping" ->
                     Req:respond({200, [], []});
                 _ ->
                     Req:not_found()
@@ -91,19 +112,17 @@ loop(Req, _DocRoot) ->
 % feed
 %
 % @param Req request
-% @param _N
-% @param Timeout 
 %
-feed(Req, _N, Timeout) ->
+feed(Req) ->
     receive
     {send_msg, Msg} ->
-        %io:format("~w Recvd msg #~w: '~s'\n", [self(), N, Msg]),
+        %io:format("~w Recvd2 msg: '~s'\n", [self(), Msg]),
         router:logout(self()),
 
         Req:respond({200, [{"Content-Type", "application/json"}, {"Access-Control-Allow-Origin", "*"}],
               "[" ++ Msg ++ "]"})
     after 
-        Timeout ->
+        ?REQUEST_TIMEOUT ->
             %io:format("timeout"),
             router:logout(self()),
             Req:respond({200, [{"Content-Type", "application/json"}, {"Access-Control-Allow-Origin", "*"}],  
