@@ -1,4 +1,3 @@
-
 -module(router).
 -behaviour(gen_server).
 
@@ -9,13 +8,16 @@
     code_change/3,
     handle_call/3,
     login/3,
+    new_message/3,
+    remove_message/3,
     handle_cast/2,
     handle_info/2,
     terminate/2,
     ticket_decode/2,
     init/1,
     logout/1,
-    static_gamma/0,
+    static_gamma1/0,
+    static_gamma2/0,
     start_link/0
 ]).
 
@@ -25,7 +27,6 @@
 -define(PID2ID, comet_pid2id).
 -define(ID2PID, comet_id2pid).
 -define(ID2MSG, comet_id2msg).
--define(INTERVAL4CLEANING, 3600000).
 
 % will hold bidirectional mapping between id <--> pid
 -record(state, {pid2id, id2pid, id2msg}).
@@ -39,7 +40,7 @@ start_link() ->
 %
 % login
 %
-% @param Id  user id
+% @param Id user id
 % @param Pid process id
 % @param Mid last message id
 %
@@ -101,7 +102,7 @@ handle_call({logout, Pid}, _From, State) when is_pid(Pid) ->
     %io:format("pid ~w logged out\n",[Pid]),
     {reply, ok, State}.
 
-% 
+%
 % handle death and cleanup of logged in processes
 %
 handle_info(Info, State) ->
@@ -141,8 +142,36 @@ terminate(_Reason, _State) ->
 insert_to_ets(Pid,Id) ->
      ets:insert(?PID2ID, {Pid, Id}),
      ets:insert(?ID2PID, {Id, Pid}),
-     link(Pid), % tell us if they exit, so we can log them out
-     io:format("~w logged in as ~w\n",[Pid, Id]).
+     link(Pid). % tell us if they exit, so we can log them out
+     %io:format("~w logged in as ~w\n",[Pid, Id]).
+
+%
+% new message
+%
+% @param Id user id
+% @param Mid message id
+% @param Msg message
+%
+new_message(Id, Mid, Msg) ->
+    % get pids who are logged in as this Id
+    %io:format("~w Recvd msg ~w: '~s'\n", [Id, Mid, Msg]),
+
+    Pids = [ P || { _Id, P } <- ets:lookup(?ID2PID, Id) ],
+    ets:insert(?ID2MSG, {Id, Msg, Mid}),
+
+    M = {send_msg, ""++Msg++""},
+    [ Pid ! M || Pid <- Pids ].
+
+%
+% remove message
+%
+% @param Id user id
+% @param Mid message id
+% @param Msg message
+%
+remove_message(Id, Mid, Msg) ->
+    %io:format("~w Remove msg ~w: '~s'\n", [Id, Mid, Msg]),
+    ets:delete_object(?ID2MSG, {Id, Msg, Mid}).
 
 %
 % This is function for remove
