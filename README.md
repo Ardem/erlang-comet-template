@@ -8,8 +8,7 @@ Requirements:
 
 1. Erlang
 2. PHP
-3. PHP Erlang Bridge http://code.google.com/p/mypeb/
-4. Rebar
+3. Rebar
 
 How to compile?
 ==================
