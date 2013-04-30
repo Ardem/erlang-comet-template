@@ -1,19 +1,32 @@
 <?php
 set_time_limit(0);
 
-$link = peb_connect("comet@app0", "secret_key");
-if (!$link)
-    echo "error:".peb_errorno()."<br>\r\nerror:".peb_error()."<br>\r\n";
+/**
+* Send message from PHP to Erlang
+*
+* @param string  $host
+* @param integer $port
+* @param integer $user_id
+* @param mixed   $message
+*
+* @return void
+*/
+function sendToErlang($host, $port, $user_id, $message) {
 
-$x = peb_vencode('[~a, ~i, ~i, ~s, ~p]', array(
-	array('push', 35, 36, '{"id":"10256","sender_name":"John","companion_id":"35","text":"Hello world!","ts":1363473591456}', $link )
-));
+    $post_string = 'uid='.urlencode($user_id).'&mid='.urlencode($last_insert_id).'&message='.urlencode($message);
 
-if (peb_send_byname("webservice",$x,$link))
-	echo "send<br>\r\n";
-else
-	echo "error:".peb_errorno()."<br>\r\nerror:".peb_error()."<br>\r\n";
+    if ($fp = @fsockopen($host, $port, $errno, $errstr, 30))
+    {
+        $out = "POST ".Yii::app()->params['messageReceiver']['path']." HTTP/1.1\r\n";
+        $out.= "Host: ".Yii::app()->params['messageReceiver']['host']."\r\n";
+        $out.= "Content-Type: application/x-www-form-urlencoded\r\n";
+        $out.= "Content-Length: ".strlen($post_string)."\r\n";
+        $out.= "Connection: Close\r\n\r\n";
+        if (isset($post_string)) $out.= $post_string;
 
-peb_close($link);
+        fwrite($fp, $out);
+        fclose($fp);
+    }
+}
 
-?>
+sendToErlang("localhost", 20010, 1, "Hello world!");
